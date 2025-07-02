@@ -4,13 +4,11 @@ import google.generativeai as genai
 
 # === API KEYS ===
 FDC_API_KEY = 'naE6pWAijzsfCTZdtNq7CbUfIzwkji9Bbx4pGBxk'
-GEMINI_API_KEY = 'AIzaSyCSDjHY4dyHY5IC3wr2atPwTIGQ9xq4FXI'
+GEMINI_API_KEY = 'AIzaSyAMnUDeFclBZewM99VOiauW32VWpIfWB14'
 FDC_SEARCH_URL = 'https://api.nal.usda.gov/fdc/v1/foods/search'
-
 
 # === CONFIGURE GEMINI ===
 genai.configure(api_key=GEMINI_API_KEY)
-
 
 def get_input(prompt, options=None):
    while True:
@@ -25,7 +23,6 @@ def get_input(prompt, options=None):
                print(" Invalid choice. Try again.")
        else:
            return input("Your answer: ").strip()
-
 
 def get_food_nutrition(food_name):
    try:
@@ -107,6 +104,58 @@ kit_recommendations = {
 }
 
 
+def get_plant_suggestions(plant_type, preferences=None):
+    """
+    Use Gemini to suggest a list of plants based on user preferences and plant type.
+    """
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            if plant_type == "Herbs":
+                prompt = """
+                Suggest a list of 5 popular culinary herbs that are easy to grow at home. List only the herb names, separated by commas. Do not include any extra text.
+                """
+                if preferences:
+                    prompt = f"Suggest a list of 5 culinary herbs that match these preferences: {preferences}. List only the herb names, separated by commas. Do not include any extra text."
+            elif plant_type == "Leafy Greens":
+                prompt = """
+                Suggest a list of 5 popular leafy greens that are easy to grow at home. List only the plant names, separated by commas. Do not include any extra text.
+                """
+                if preferences:
+                    prompt = f"Suggest a list of 5 leafy greens that match these preferences: {preferences}. List only the plant names, separated by commas. Do not include any extra text."
+            elif plant_type == "Small Veggies":
+                prompt = """
+                Suggest a list of 5 popular small vegetables that are easy to grow at home. List only the vegetable names, separated by commas. Do not include any extra text.
+                """
+                if preferences:
+                    prompt = f"Suggest a list of 5 small vegetables that match these preferences: {preferences}. List only the vegetable names, separated by commas. Do not include any extra text."
+            else:  # "Not sure"
+                prompt = """
+                Suggest a list of 5 popular edible plants that are easy to grow at home. List only the plant names, separated by commas. Do not include any extra text.
+                """
+                if preferences:
+                    prompt = f"Suggest a list of 5 edible plants that match these preferences: {preferences}. List only the plant names, separated by commas. Do not include any extra text."
+            
+            response = model.generate_content(prompt)
+            plants = [p.strip() for p in response.text.split(',') if p.strip()]
+            
+            if plants:  # If we got valid suggestions, return them
+                return plants
+            else:
+                print(f"Attempt {attempt + 1}: No valid plants returned, retrying...")
+                
+        except Exception as e:
+            print(f"Attempt {attempt + 1}: Error getting plant suggestions: {e}")
+            if attempt < max_retries - 1:
+                print("Retrying...")
+            else:
+                print("Failed to get plant suggestions after all attempts.")
+                return []
+    
+    return []
+
+
 def plant_questionnaire():
    print("🌿 Welcome to GrowPal CLI!\nLet's set up your growing preferences.")
    plant_data = {}
@@ -131,10 +180,10 @@ def plant_questionnaire():
            plant_data["Budget"] = get_input("What is your budget for setup?", ["Under $30", "$30–$100", "$100+"])
 
 
-   plant_data["What to Grow"] = get_input("What do you want to grow?", ["Herbs", "Leafy Greens", "Small Veggies", "Flowers", "Not sure"])
+   plant_data["What to Grow"] = get_input("What do you want to grow?", ["Herbs", "Leafy Greens", "Small Veggies", "Not sure"])
    plant_data["Plant Count"] = get_input("How many plants would you like to grow at once?", ["1–3", "4–6", "7+"])
-   plant_data["Harvest Speed"] = get_input("How soon would you like to harvest something?", ["Fastest possible", "I’m patient", "No preference"])
-   plant_data["Low Maintenance"] = get_input("Do you prefer low-maintenance plants?", ["Yes", "Doesn’t matter", "I want a challenge"])
+   plant_data["Harvest Speed"] = get_input("How soon would you like to harvest something?", ["Fastest possible", "I'm patient", "No preference"])
+   plant_data["Low Maintenance"] = get_input("Do you prefer low-maintenance plants?", ["Yes", "Doesn't matter", "I want a challenge"])
    plant_data["Weekly Care Time"] = get_input("How much time can you dedicate to plant care weekly?", ["Less than 30 min", "30–60 min", "More than 1 hour"])
    plant_data["Care Reminders"] = get_input("Would you like reminders for care tasks?", ["Yes", "No"])
    plant_data["Meal Suggestions"] = get_input("Do you want to receive meal suggestions based on what you grow?", ["Yes", "No"])
@@ -159,31 +208,33 @@ def plant_questionnaire():
 
 
    # === Nutrition Info ===
-   food_map = {
-       "Herbs": "parsley",
-       "Leafy Greens": "spinach",
-       "Small Veggies": "tomato",
-       "Flowers": "zucchini blossom",
-       "Not sure": "lettuce"
-   }
-   food_query = food_map.get(plant_data["What to Grow"], plant_data["What to Grow"].lower())
-
-
-   print(f"\n🔍 Looking up nutrition data for: {food_query}...")
-   food_info = get_food_nutrition(food_query)
-   if "Error" in food_info:
-       print(f"Could not fetch nutrition data: {food_info['Error']}")
-   else:
-       print("\n📊 USDA Nutrition Facts:")
-       for key, value in food_info.items():
-           print(f"- {key}: {value}")
-
-
-       if plant_data["Meal Suggestions"] == "Yes":
-           print("\n🍽️ Generating a meal idea using Gemini...")
-           meal = generate_meal_idea(food_query, food_info)
-           print("\n✨ Meal Suggestion from Gemini:")
-           print(meal)
+   # Get plant suggestions based on type and preferences
+   preferences = get_input(f"Do you have any preferences for {plant_data['What to Grow'].lower()}? (e.g., flavor, cuisine, easy to grow)\n(Leave blank for general suggestions)")
+   plant_list = get_plant_suggestions(plant_data["What to Grow"], preferences)
+   print(f"\n🌿 Gemini suggests these {plant_data['What to Grow'].lower()} for you: {', '.join(plant_list)}")
+   print("\nFetching nutrition info for each plant...")
+   chart_data = []
+   for plant in plant_list:
+       info = get_food_nutrition(plant)
+       if "Error" not in info:
+           chart_data.append([plant, info.get("Calories", "N/A"), info.get("Protein", "N/A"), info.get("Fat", "N/A"), info.get("Fiber", "N/A")])
+   
+   # Print chart
+   print(f"\n📊 USDA Nutrition Chart for {plant_data['What to Grow']} (per 100g):")
+   print(f"{'Plant':<15}{'Calories':<10}{'Protein':<10}{'Fat':<10}{'Fiber':<10}")
+   print("-"*55)
+   for row in chart_data:
+       print(f"{row[0]:<15}{row[1]:<10}{row[2]:<10}{row[3]:<10}{row[4]:<10}")
+   
+   # Meal suggestions for all plant types
+   if plant_data["Meal Suggestions"] == "Yes":
+       print("\n🍽️ Generating meal ideas using Gemini...")
+       for plant in plant_list:
+           info = get_food_nutrition(plant)
+           if "Error" not in info:
+               meal = generate_meal_idea(plant, info)
+               print(f"\n✨ Meal Suggestion for {plant}:")
+               print(meal)
 
 
 if __name__ == "__main__":
