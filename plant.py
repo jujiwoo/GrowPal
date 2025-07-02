@@ -209,7 +209,10 @@ def plant_questionnaire():
 
    # === Nutrition Info ===
    # Get plant suggestions based on type and preferences
-   preferences = get_input(f"Do you have any preferences for {plant_data['What to Grow'].lower()}? (e.g., flavor, cuisine, easy to grow)\n(Leave blank for general suggestions)")
+   preference_options = ["Flavor", "Cuisine", "Easy to grow", "No preference/Blank"]
+   preference_prompt = f"Do you have any preferences for {plant_data['What to Grow'].lower()}? (e.g., flavor, cuisine, easy to grow)"
+   preference_choice = get_input(preference_prompt + "\n(Select an option or choose 'No preference/Blank')", preference_options)
+   preferences = "" if preference_choice == "No preference/Blank" else preference_choice
    plant_list = get_plant_suggestions(plant_data["What to Grow"], preferences)
    print(f"\n🌿 Gemini suggests these {plant_data['What to Grow'].lower()} for you: {', '.join(plant_list)}")
    print("\nFetching nutrition info for each plant...")
