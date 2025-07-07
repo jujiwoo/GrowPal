@@ -5,7 +5,7 @@ import os
 
 # === API KEYS ===
 FDC_API_KEY = 'naE6pWAijzsfCTZdtNq7CbUfIzwkji9Bbx4pGBxk'
-GEMINI_API_KEY = 'AIzaSyAMnUDeFclBZewM99VOiauW32VWpIfWB14'
+GEMINI_API_KEY = 'AIzaSyCse3Jfokz9bzIvZwBVIdeV1gE0-DPrifw'
 FDC_SEARCH_URL = 'https://api.nal.usda.gov/fdc/v1/foods/search'
 
 # === CONFIGURE GEMINI ===
@@ -42,7 +42,7 @@ def get_input(prompt, options=None):
             elif choice.isdigit() and 1 <= int(choice) <= len(options):
                 return options[int(choice) - 1]
             else:
-                print("Invalid choice.")
+                print("\nInvalid choice.")
         else:
             answer = input("Your answer: ").strip()
             if answer.upper() == 'X':
@@ -269,6 +269,3 @@ if __name__ == "__main__":
                 break
         except RestartException:
             continue
-
-
-
